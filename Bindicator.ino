@@ -12,12 +12,13 @@
 #include "DebugMacros.h"
 
 #define SECOND            1000
-#define MINUTE            60 * SECOND
-#define HOUR              60 * MINUTE
+#define MINUTE            SECOND * 60
+#define HOUR              MINUTE * 60
 
 #define DISPLAY                         // Comment out if the ESP8266 doesn't have a display
 #define VERSION           "v0.20b"      // Version information
 #define PORTAL_SSID       "Bindicator"  // SSID for web portal
+#define SCROLLING         true          // If false, use the button to change page
 #define NEOPIXEL_PIN      13            // NeoPixel data pin
 #define TOUCH_PIN         12            // Capacitive touch data pin
 #define RESET_PIN         16            // Display reset
@@ -69,6 +70,7 @@ LinkedList<struct Event> eventList;     // Linked List containing active events
 Adafruit_NeoPixel pixel = Adafruit_NeoPixel(NUMPIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 #ifdef DISPLAY
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, RESET_PIN, CLOCK_PIN, DATA_PIN);
+int page;                               // Incremented to change page when button touched and no collection scheduled
 #endif
 
 const char* host = "script.google.com";                                           // Base URL for Google Apps
@@ -108,7 +110,7 @@ void setup() {
   u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
   u8g2.drawStr(24, 14, "Bindicator");
   u8g2.setFont(u8g2_font_profont17_tf);
-  u8g2.drawStr(43, 28, "v0.19b");
+  u8g2.drawStr(43, 32, "v0.19b");
   u8g2.sendBuffer();                        // Transfer internal memory to the display
 #endif
 
@@ -160,9 +162,16 @@ void setup() {
     wifiTimeoutCounter++;
     DPRINT(".");
     if (wifiTimeoutCounter == WIFI_TIMEOUT) // If it doesn't connect, the NeoPixel will turn red.
-    { // It's trivial to change this to start WiFi configuration
+    {                                       // It's trivial to change this to start WiFi configuration
       pixel.fill(pixel.ColorHSV(RED_HUE));  // at this point.
       pixel.show();
+#ifdef DISPLAY
+      u8g2.clearBuffer();                       // Clear the internal memory
+      u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+      u8g2.drawStr(0, 14, "Error joining");     // Write title to the buffer
+      u8g2.drawStr(0, 32, "WiFi network");
+      u8g2.sendBuffer();                        // Transfer internal memory to the display
+#endif
       return;
     }
   }
@@ -183,40 +192,92 @@ void setup() {
 }
 
 void loop() {
-  ts.execute();                             // Task scheduler handles all repeating functions
+  ts.execute();                               // Task scheduler handles all repeating functions
 }
 
 void neopixelCallback() {
   DPRINTLN(ESP.getFreeHeap());
-  if (eventList.getLength() > 0)            // If items to show...
+  if (eventList.getLength() > 0)              // If items to show...
   {
     struct RGB rgb;
     struct Event e = eventList.getCurrent();
     rgb = eventColor2RealColor(e.color);
     pixel.fill(pixel.Color(rgb.r, rgb.g, rgb.b));
     pixel.show();
-    eventList.loop();                       // Move to the next item
+    eventList.loop();                         // Move to the next item
+#ifdef DISPLAY
+    u8g2.clearBuffer();                       // Clear the internal memory
+    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+    u8g2.drawStr(0, 14, "Next collection");   // Write title to the buffer
+    u8g2.drawStr(0, 32, e.title);
+    u8g2.sendBuffer();                        // Transfer internal memory to the display
+#endif
   } else
   {
-    pixel.fill(pixel.Color(0, 0, 0));       // Nothing to show, turn light off
+    pixel.fill(pixel.Color(0, 0, 0));          // Nothing to show, turn light off
     pixel.show();
-  }
 
 #ifdef DISPLAY
-  u8g2.clearBuffer();                      // Clear the internal memory
-  u8g2.setFont(u8g2_font_helvR14_tf);      // Choose a suitable font
-  u8g2.drawStr(0, 14, "Free heap");        // Write something to the internal memory
-  char buf[8];
-  itoa(ESP.getFreeHeap(), buf, 10);
-  u8g2.drawStr(0, 32, buf);
-  u8g2.drawStr(53, 32, "kb");
-  u8g2.sendBuffer();                       // Transfer internal memory to the display
+    switch (page % 3)
+    {
+      case 0:                                     // Page 1
+        u8g2.clearBuffer();                       // Clear the internal memory
+        u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+        u8g2.drawStr(0, 14, "Free heap");         // Write the free heap to the buffer
+        char buf[16];
+        itoa(ESP.getFreeHeap(), buf, 10);
+        u8g2.drawStr(0, 32, buf);
+        u8g2.drawStr(53, 32, "kb");
+        u8g2.sendBuffer();                        // Transfer internal memory to the display
+        break;
+
+      case 1:                                     // Page 2
+        u8g2.clearBuffer();                       // Clear the internal memory
+        u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+        u8g2.drawStr(0, 14, "IP address");        // Write the title to the buffer
+        u8g2.drawStr(0, 32, 
+        WiFi.localIP().toString().c_str());       // Write the IP address to the buffer
+        u8g2.sendBuffer();                        // Transfer internal memory to the display
+        break;
+
+      case 2:                                     // Page 3
+        long t = 
+        ts.timeUntilNextIteration(tUpdateData);   // Time until task runs again in millis
+        u8g2.clearBuffer();                       // Clear the internal memory
+        u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+        if (t == 0) {
+          u8g2.drawStr(0, 14, "Next check");
+          u8g2.drawStr(0, 32, "in progress.");
+        }
+        if (t == -1) {
+          u8g2.drawStr(0, 14, "Calendar sync");
+          u8g2.drawStr(0, 32, "is disabled.");
+        }
+        else {
+          const char* text = showTimeFormatted(t);
+          int mins = t / 60000;
+          DPRINTLN(text);
+          u8g2.drawStr(0, 14, "Refresh (mins)");
+          u8g2.setCursor(0, 32);       
+          u8g2.print(mins);
+        }
+        u8g2.sendBuffer();
+    }
+  }
+
 #endif
 }
 
 void cancelEventsCallback() {
   if (digitalRead(TOUCH_PIN) == HIGH && eventList.getLength() > 0)   // Only run if the button is held down
-  { // and there are events to cancel
+  {                                                                  // and there are events to cancel
+#ifdef DISPLAY
+    u8g2.clearBuffer();                       // Clear the internal memory
+    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+    u8g2.drawStr(0, 14, "Cancelling");        // Write title to the buffer
+    u8g2.drawStr(0, 32, "reminder...");
+    u8g2.sendBuffer();                        // Transfer internal memory to the display
+#endif
     pixel.fill(pixel.ColorHSV(MAGENTA_HUE));
     pixel.show();
 
@@ -259,7 +320,14 @@ void cancelEventsCallback() {
     getEventsCallback();                            // Update events list to make sure they were
     return;                                         // successfully cancelled
   }
-}
+
+#ifdef DISPLAY
+  if (!SCROLLING && digitalRead(TOUCH_PIN) == HIGH)
+      page++;                                         // Increment page number (modulo use)
+      else
+        page++;
+#endif
+  }
 
 void getEventsCallback()
 {
@@ -341,6 +409,13 @@ void configWiFi()
   pixel.fill(pixel.ColorHSV(MAGENTA_HUE));
   pixel.show();
 
+#ifdef DISPLAY
+    u8g2.clearBuffer();                       // Clear the internal memory
+    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+    u8g2.drawStr(24, 23, "WiFi Setup");        // Write title to the buffer
+    u8g2.sendBuffer();                        // Transfer internal memory to the display
+#endif
+
   WiFiManager wifiManager;                                // WiFiManager provides configuration on local webserver
   wifiManager.setSaveConfigCallback(saveConfigCallback);   // This function called if data updated
   wifiManager.addParameter(&custom_gScriptId);             // Add a custom parameter for the Google Apps ID
@@ -367,6 +442,13 @@ void saveConfigCallback()
   configFile.close();
 
   DPRINTLN("Restarting in 5 seconds");
+#ifdef DISPLAY
+    u8g2.clearBuffer();                       // Clear the internal memory
+    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+    u8g2.drawStr(0, 14, "Restarting");        // Write title to the buffer
+    u8g2.drawStr(0, 32, "in 5 seconds");
+    u8g2.sendBuffer();                        // Transfer internal memory to the display
+#endif
   delay(5000);
   ESP.restart();
 }
@@ -491,14 +573,14 @@ struct RGB eventColor2RealColor(EventColor eventColor)
       return color;
       break;
 
-    case BLUE:        
+    case BLUE:
       color.r = 25;
       color.g = 25;
       color.b = 255;
       return color;
       break;
 
-    case GREEN:       
+    case GREEN:
       color.r = 10;
       color.g = 255;
       color.b = 10;
@@ -518,4 +600,28 @@ struct RGB eventColor2RealColor(EventColor eventColor)
       color.b = 255;
       return color;
   }
+}
+
+const char* showTimeFormatted(long ms) {
+  DPRINTLN(ms);
+  long hours = 0;
+  long mins = 0;
+  long secs = 0;
+
+  String minsText = " minutes"; 
+  secs = ms / 1000;             // Set the seconds remaining
+  mins = secs / 60;             // Convert seconds to minutes
+  hours = mins / 60;            // Convert minutes to hours
+  secs = secs - (mins * 60);    // Subtract the coverted seconds to minutes in order to display 59 secs max
+  mins = mins - (hours * 60);   // Subtract the coverted minutes to hours in order to display 59 minutes max
+
+  // return days + hours_o + hours + mins_o + mins + secs_o + secs;
+  String r;
+  if (mins > 1)
+    r = mins + minsText;
+  else
+    r = "one minute";
+  DPRINTLN(r.c_str());
+  return r.c_str();  
+
 }
