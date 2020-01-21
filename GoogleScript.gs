@@ -11,7 +11,7 @@
 var maxEvents = 3; 
 
                              
-// The time at which the collection is assumed to have taken place
+// The time at which the collection is assumed to have taken place,
 // after which the reminder will be automatically dismissed.
 // Valid range 0:01am - 11:59pm (0001 - 2359 also acceptable)
 // Default [8:00am]
@@ -30,17 +30,6 @@ var cutoffTime = "8:00am"
 
 var dismissed = "dismissed";
 var dateRange = 1;
-
-function test()
-{
-  var e = {
-  "parameter": {
-    "clear": ""
-    }
-    };
-  
-  doPost(e);
-}
 
 function doGet()
 {
@@ -138,6 +127,17 @@ function resetEventTags()
     events[i].setTag(dismissed, "FALSE");
     Logger.log("Dismissed: " + events[i].getTag(dismissed));
   }
+}
+
+function test()
+{
+  var e = {
+  "parameter": {
+    "clear": ""
+    }
+    };
+  
+  doPost(e);
 }
 
 
