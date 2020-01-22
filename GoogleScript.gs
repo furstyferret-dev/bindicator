@@ -50,10 +50,12 @@ function doPost(e)
   
   var now = new Date();
   now.setDate(new Date().getDate());
+  Logger.log(now);
   var tomorrow = new Date();
   tomorrow.setDate(new Date().getDate()+1);
   
-  var events = cal.getEventsForDay(tomorrow);
+  var events = cal.getEvents(now, tomorrow);
+  Logger.log(events);
   var i;
   for (i = 0; i < events.length; i++)
   {
@@ -68,10 +70,19 @@ function getEventsJson()
   var cal = CalendarApp.getCalendarsByName('Bins')[0]; 
   var now = new Date();
   now.setDate(new Date().getDate());
-  var nextWeek = new Date();
-  nextWeek.setDate(new Date().getDate() + dateRange);
+  var future = new Date();
+  future.setDate(new Date().getDate() + dateRange);
 
-  var events = cal.getEvents(now, nextWeek)
+  // If the cut-off time has passed, skip to tomorrow
+  Logger.log(parseTime(cutoffTime));
+  if (now > parseTime(cutoffTime))
+  {
+    now.setDate(now.getDate() + 1);
+    now.setHours(00);
+    now.setMinutes(00);
+    }
+    
+  var events = cal.getEvents(now, future)
   if (events.length > 0)
   {
     var event = [];
@@ -99,8 +110,9 @@ function parseTime(t) {
    var d = new Date();
    d.setDate(new Date().getDate());
    var time = t.match( /(\d+)(?::(\d\d))?\s*(p?)/ );
-   d.setHours( parseInt( time[1]) + (time[3] ? 12 : 0) );
-   d.setMinutes( parseInt( time[2]) || 0 );
+   d.setHours(parseInt( time[1]) + (time[3] ? 12 : 0) );
+   d.setMinutes(parseInt( time[2]) || 0 );
+   d.setSeconds(0);
    return d;
 }
 
