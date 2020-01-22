@@ -50,6 +50,9 @@ function doPost(e)
   
   var now = new Date();
   now.setDate(new Date().getDate());
+  now.setHours(00);
+  now.setMinutes(00);
+  now.setSeconds(00);
   Logger.log(now);
   var tomorrow = new Date();
   tomorrow.setDate(new Date().getDate()+1);
