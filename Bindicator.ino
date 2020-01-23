@@ -16,7 +16,7 @@
 #define HOUR              MINUTE * 60
 
 #define DISPLAY                         // Comment out if the ESP8266 doesn't have a display
-#define VERSION           "v0.20b"      // Version information
+#define VERSION           "v1.22b"      // Version information
 #define PORTAL_SSID       "Bindicator"  // SSID for web portal
 #define SCROLLING         true          // If false, use the button to change page
 #define NEOPIXEL_PIN      13            // NeoPixel data pin
@@ -107,10 +107,10 @@ void setup() {
   u8g2.begin();
   u8g2.setFontMode(0);                      // Enable transparent mode, which is faster
   u8g2.clearBuffer();                       // Clear the internal memory
-  u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
-  u8g2.drawStr(24, 14, "Bindicator");
-  u8g2.setFont(u8g2_font_profont17_tf);
-  u8g2.drawStr(43, 32, "v0.19b");
+  u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
+  u8g2.drawStr(20, 14, "Bindicator");
+  u8g2.setFont(u8g2_font_helvR14_tr);
+  u8g2.drawStr(38, 32, VERSION);
   u8g2.sendBuffer();                        // Transfer internal memory to the display
 #endif
 
@@ -156,6 +156,7 @@ void setup() {
   DPRINT("Connecting to WiFi: ");
 
   int wifiTimeoutCounter = 0;               // Connect to WiFi. WiFi.begin uses last valid ssid / password
+  WiFi.softAPdisconnect(true);              // Stop broadcasting SSID from setup mode (ESP8266 bug)
   WiFi.begin();                             // saved in the EEPROM.
   while (WiFi.status() != WL_CONNECTED) {
     pulseNeoPixel();
@@ -167,7 +168,7 @@ void setup() {
       pixel.show();
 #ifdef DISPLAY
       u8g2.clearBuffer();                       // Clear the internal memory
-      u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+      u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
       u8g2.drawStr(0, 14, "Error joining");     // Write title to the buffer
       u8g2.drawStr(0, 32, "WiFi network");
       u8g2.sendBuffer();                        // Transfer internal memory to the display
@@ -207,9 +208,10 @@ void neopixelCallback() {
     eventList.loop();                         // Move to the next item
 #ifdef DISPLAY
     u8g2.clearBuffer();                       // Clear the internal memory
-    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+    u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
     u8g2.drawStr(0, 14, "Next collection");   // Write title to the buffer
     u8g2.drawStr(0, 32, e.title);
+    DPRINTLN(e.title);
     u8g2.sendBuffer();                        // Transfer internal memory to the display
 #endif
   } else
@@ -222,9 +224,9 @@ void neopixelCallback() {
     {
       case 0:                                     // Page 1
         u8g2.clearBuffer();                       // Clear the internal memory
-        u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+        u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
         u8g2.drawStr(0, 14, "Free heap");         // Write the free heap to the buffer
-        char buf[16];
+        char buf[32];
         itoa(ESP.getFreeHeap(), buf, 10);
         u8g2.drawStr(0, 32, buf);
         u8g2.drawStr(53, 32, "kb");
@@ -233,7 +235,7 @@ void neopixelCallback() {
 
       case 1:                                     // Page 2
         u8g2.clearBuffer();                       // Clear the internal memory
-        u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+        u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
         u8g2.drawStr(0, 14, "IP address");        // Write the title to the buffer
         u8g2.drawStr(0, 32, 
         WiFi.localIP().toString().c_str());       // Write the IP address to the buffer
@@ -244,7 +246,7 @@ void neopixelCallback() {
         long t = 
         ts.timeUntilNextIteration(tUpdateData);   // Time until task runs again in millis
         u8g2.clearBuffer();                       // Clear the internal memory
-        u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+        u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
         if (t == 0) {
           u8g2.drawStr(0, 14, "Next check");
           u8g2.drawStr(0, 32, "in progress.");
@@ -257,7 +259,8 @@ void neopixelCallback() {
           const char* text = showTimeFormatted(t);
           int mins = t / 60000;
           DPRINTLN(text);
-          u8g2.drawStr(0, 14, "Refresh (mins)");
+          u8g2.drawStr(0, 14, "Next update");
+          u8g2.drawStr(22, 32, "mins");
           u8g2.setCursor(0, 32);       
           u8g2.print(mins);
         }
@@ -273,7 +276,7 @@ void cancelEventsCallback() {
   {                                                                  // and there are events to cancel
 #ifdef DISPLAY
     u8g2.clearBuffer();                       // Clear the internal memory
-    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+    u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
     u8g2.drawStr(0, 14, "Cancelling");        // Write title to the buffer
     u8g2.drawStr(0, 32, "reminder...");
     u8g2.sendBuffer();                        // Transfer internal memory to the display
@@ -317,6 +320,7 @@ void cancelEventsCallback() {
     pixel.fill(pixel.Color(0, 0, 0));               // Light off
     pixel.show();
 
+    eventList.Clear();                              // Empty the event list
     getEventsCallback();                            // Update events list to make sure they were
     return;                                         // successfully cancelled
   }
@@ -361,7 +365,7 @@ void getEventsCallback()
   }
 
   if (client->GET(eventsUrl, host))
-    if (client->getStatusCode() == 200)
+    if (client->getStatusCode() == 200)             // Valid response
     {
       DPRINTLN(ESP.getFreeHeap());
       DPRINTLN("Response Body: ");
@@ -369,15 +373,29 @@ void getEventsCallback()
       DPRINT(client->getResponseBody());
     }
 
+    if (client->getStatusCode() == 404)            // 404 - script ID probably wrong
+    {
+      DPRINTLN("404 - confirm Gscript ID");
+      pixel.fill(pixel.ColorHSV(RED_HUE));        // Show red light (briefly) 
+      pixel.show();
+#ifdef DISPLAY
+      u8g2.clearBuffer();                         // Clear the internal memory
+      u8g2.setFont(u8g2_font_helvR14_tr);         // Choose a suitable font
+      u8g2.drawStr(0, 14, "Update failed");       // Write title to the buffer
+      u8g2.drawStr(0, 32, "Check API ID");
+      u8g2.sendBuffer();                          // Transfer internal memory to the display
+#endif
+    }
+
   // Delete HTTPSRedirect object
   delete client;
   client = nullptr;
-  tShowEventColor.enable();
+  tShowEventColor.enableDelayed(SECOND * 3);      // Brief delay so errors visible to user
 }
 
 void parseJson(String json) {
 
-  const size_t capacity = JSON_ARRAY_SIZE(3) + 3 * JSON_OBJECT_SIZE(2) + 213; // Additional byes for string duplication
+  const size_t capacity = JSON_ARRAY_SIZE(3) + 3 * JSON_OBJECT_SIZE(2) + 1024; // Additional bytes for string duplication
   DynamicJsonDocument doc(capacity);
 
   deserializeJson(doc, json);
@@ -411,8 +429,8 @@ void configWiFi()
 
 #ifdef DISPLAY
     u8g2.clearBuffer();                       // Clear the internal memory
-    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
-    u8g2.drawStr(24, 23, "WiFi Setup");        // Write title to the buffer
+    u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
+    u8g2.drawStr(24, 23, "WiFi Setup");       // Write title to the buffer
     u8g2.sendBuffer();                        // Transfer internal memory to the display
 #endif
 
@@ -444,7 +462,7 @@ void saveConfigCallback()
   DPRINTLN("Restarting in 5 seconds");
 #ifdef DISPLAY
     u8g2.clearBuffer();                       // Clear the internal memory
-    u8g2.setFont(u8g2_font_helvR14_tf);       // Choose a suitable font
+    u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
     u8g2.drawStr(0, 14, "Restarting");        // Write title to the buffer
     u8g2.drawStr(0, 32, "in 5 seconds");
     u8g2.sendBuffer();                        // Transfer internal memory to the display
