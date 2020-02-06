@@ -1,6 +1,6 @@
 # bindicator
 ## Overview
-A bin collection notifier partly inspired by [this Twitter post](https://twitter.com/tarbard/status/1002464120447397888?lang=en) by Darren Tabard. Significant changes include collection schedule download from a Google Calendar, an OLED display, use of a NeoPixel Ring for greater brightness, and a capacitive touch sensor to cancel the reminder.
+A bin collection notifier partly inspired by [this Twitter post](https://twitter.com/tarbard/status/1002464120447397888?lang=en) by Darren Tabard. Significant changes include collection schedule download from a Google Calendar, OLED display support, use of two NeoPixel Rings for greater brightness, and a capacitive touch sensor to cancel the reminder.
 
 [![Watch the video](https://img.youtube.com/vi/ZPVAoEwXMvM/maxresdefault.jpg)](https://youtu.be/ZPVAoEwXMvM)
 
@@ -13,14 +13,14 @@ Calendar data is refreshed every 20 minutes.
 
 ## Make your own
 ### Parts list
-1. [ESP8266 development board with OLED (any ESP8266 will work)](https://www.amazon.co.uk/gp/product/B076S8S6HL/ref=ox_sc_act_title_1?smid=A1QGN06QN25C35&psc=1)
-2. [NeoPixel 7-LED ring (or generic equivalent)](https://www.amazon.co.uk/gp/product/B07L82MSC9/ref=ox_sc_act_title_2?smid=A3TQ6TJY5HYALR&psc=1)
+1. [ESP8266 development board with OLED (any ESP8266 will work)](https://www.amazon.co.uk/gp/product/B076S8S6HL/ref=ox_sc_act_title_1?smid=A1QGN06QN25C35&psc=1) OR [Makerfire D1 Mini or clone](https://www.amazon.co.uk/Makerfire-NodeMcu-ESP8266-Internet-Development/dp/B07KYFZD17/ref=sr_1_1_sspa?crid=2KMR2ZYY6J68T)
+2. [NeoPixel 7-LED ring (or generic equivalent) * 2](https://www.amazon.co.uk/gp/product/B07L82MSC9/ref=ox_sc_act_title_2?smid=A3TQ6TJY5HYALR&psc=1)
 3. [Generic capacitive touch sensor](https://www.amazon.co.uk/ARCELI-2-5-5-5V-Capacitive-Self-Lock-Arduino/dp/B07BVN4CNH/)
 
 ### Arduino code
-The Arduino code is plug-and-play. Very limited GPIO pins are available on this board due to the OLED display. Choose carefully because picking the wrong pins will result in extremely unpredictable behaviour. Further information on customising the program is available below.
+The Arduino code is plug-and-play. Further information on customising the program is available below.
 
-> If you're using a plain ESP8266 board you may wish to comment out the DISPLAY definition on line 18.
+> If you're using a plain ESP8266 board you should comment out the DISPLAY definition on line 18.
 
 ### Google script
 Instead of trying to download and parse an entire calendar, the heavy lifting is handled by a Google Script. Go to [Google Scripts](https://script.google.com/home) and create a new project. Copy and paste the code from the GoogleScript.gs file, save it, and publish it.
@@ -30,12 +30,21 @@ Instead of trying to download and parse an entire calendar, the heavy lifting is
 
 You'll need to supply this ID when you set up the Bindicator for the first time, otherwise it'll just show you my bin collection calendar.
 
+### Soldering
+Minimal soldering required. You'll need to solder wires to the NeoPixels and touch sensor. The NeoPixels support loop-in-and-out for data, saving a pin on the ESP8266. Dupont jumper wires can be used to connect to the board. I removed the plastic connector and replaced it with thin heat shrink tube to allow more flexibility when squashing everything into the base. 
+
+NeoPixels and the button are happy on either 3.3 or 5V. I would not recommend running both from 3.3V as the on-board regulator will struggle, but the 5V side should be fine, as is a mixture of both.
+
+Important: The D1 Mini only has one ground. Either loop through both NeoPixels and then on to the button, or solder a couple of header pins horizontally to the top of the USB port (common ground). 
+
 ### 3D print
-I've modified a [fantastic model of a wheelie bin / trash can](https://www.thingiverse.com/thing:1935572) by DrLex. You'll need to download the wheels and axles from Thingiverse because I've not edited them. I've changed the bin model to include a mounting ring for the NeoPixel and a housing for the capacitive touch switch. I'd recommend printing with extra solid layers both on the sides and the top. I've used transparent PLA and I think white would work too. Grey definitely doesn't work.
+I've modified a [fantastic model of a wheelie bin / trash can](https://www.thingiverse.com/thing:1935572) by DrLex. You'll need to download the wheels and axles from Thingiverse because I've not edited them. I've changed the bin model to include a mounting ring for the NeoPixel and a housing for the capacitive touch switch. I'd recommend printing with extra solid layers both on the sides and the top. I've used transparent PLA and white. White is best. Grey definitely doesn't work. :-)
 
-If you use transparent PLA you may wish to print the diffuser which drops on top of the LED ring. This makes the light much easier to see in daylight, and prevents colour fringing effects from the layer lines.
+If you use transparent PLA you may wish to print a diffuser which drops on top of the LED ring. This makes the light much easier to see in daylight, and prevents colour fringing effects from the layer lines.
 
-I just hot-glued the button to the lid. The cable clamps were glued either side of the wires going to the ESP8266.
+I hot-glued the button and NeoPixel to the lid. 
+
+[Here's the Thingiverse remix](https://www.thingiverse.com/thing:4147342)
 
 ## LED colours
 * **Pulsing White**: Connecting to WiFi
@@ -53,6 +62,9 @@ I think this is a memory leak from the Linked List which handles events. The rea
 
 **Colours aren't distinctive.**
 I'd recommend sticking with strong primary colours (green / blue / orange etc) instead of the paler equivalents. The brightness variable may help here, as would implementing the gamma correction function available from Adafruit. If you don't like them, they're easily corrected (8 bit RGB values).
+
+## Improvements
+Reducing the reliance on hot-glue would be a start. I wasn't aware of NeoPixel linear boards when I built this, which could be used to create some very interesting effects if mounted on the inside back wall of the model.
 
 ## Thanks
 * Darren Tabard [for the inspiration](https://twitter.com/tarbard/status/1002464120447397888?lang=en).
