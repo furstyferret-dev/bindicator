@@ -11,7 +11,7 @@
 var maxEvents = 3; 
 
                              
-// The time at which the collection is assumed to have taken place,
+// The time at which the collection is assumed to have taken place
 // after which the reminder will be automatically dismissed.
 // Valid range 0:01am - 11:59pm (0001 - 2359 also acceptable)
 // Default [8:00am]
@@ -30,6 +30,17 @@ var cutoffTime = "8:00am"
 
 var dismissed = "dismissed";
 var dateRange = 1;
+
+function test()
+{
+  var e = {
+  "parameter": {
+    "clear": ""
+    }
+    };
+  
+  doPost(e);
+}
 
 function doGet()
 {
@@ -50,15 +61,10 @@ function doPost(e)
   
   var now = new Date();
   now.setDate(new Date().getDate());
-  now.setHours(00);
-  now.setMinutes(00);
-  now.setSeconds(00);
-  Logger.log(now);
   var tomorrow = new Date();
   tomorrow.setDate(new Date().getDate()+1);
   
-  var events = cal.getEvents(now, tomorrow);
-  Logger.log(events);
+  var events = cal.getEventsForDay(tomorrow);
   var i;
   for (i = 0; i < events.length; i++)
   {
@@ -73,19 +79,10 @@ function getEventsJson()
   var cal = CalendarApp.getCalendarsByName('Bins')[0]; 
   var now = new Date();
   now.setDate(new Date().getDate());
-  var future = new Date();
-  future.setDate(new Date().getDate() + dateRange);
+  var nextWeek = new Date();
+  nextWeek.setDate(new Date().getDate() + dateRange);
 
-  // If the cut-off time has passed, skip to tomorrow
-  Logger.log(parseTime(cutoffTime));
-  if (now > parseTime(cutoffTime))
-  {
-    now.setDate(now.getDate() + 1);
-    now.setHours(00);
-    now.setMinutes(00);
-    }
-    
-  var events = cal.getEvents(now, future)
+  var events = cal.getEvents(now, nextWeek)
   if (events.length > 0)
   {
     var event = [];
@@ -113,9 +110,8 @@ function parseTime(t) {
    var d = new Date();
    d.setDate(new Date().getDate());
    var time = t.match( /(\d+)(?::(\d\d))?\s*(p?)/ );
-   d.setHours(parseInt( time[1]) + (time[3] ? 12 : 0) );
-   d.setMinutes(parseInt( time[2]) || 0 );
-   d.setSeconds(0);
+   d.setHours( parseInt( time[1]) + (time[3] ? 12 : 0) );
+   d.setMinutes( parseInt( time[2]) || 0 );
    return d;
 }
 
@@ -142,17 +138,6 @@ function resetEventTags()
     events[i].setTag(dismissed, "FALSE");
     Logger.log("Dismissed: " + events[i].getTag(dismissed));
   }
-}
-
-function test()
-{
-  var e = {
-  "parameter": {
-    "clear": ""
-    }
-    };
-  
-  doPost(e);
 }
 
 

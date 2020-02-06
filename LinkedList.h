@@ -127,6 +127,7 @@ template <class T>
 void LinkedList<T>::Append(T element)
 {
   ListNode<T> * node = new ListNode<T>(element, tail, nullptr);
+  malloc(sizeof(node));
 
   if (length == 0)
     curr = tail = head = node;

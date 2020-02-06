@@ -15,22 +15,24 @@
 #define MINUTE            SECOND * 60
 #define HOUR              MINUTE * 60
 
-#define DISPLAY                         // Comment out if the ESP8266 doesn't have a display
-#define VERSION           "v1.22b"      // Version information
+//#define DISPLAY                       // Comment out if the ESP8266 doesn't have a display
+#define POWER_LED         true          // Illuminate the built-in LED when power supplied       
+#define VERSION           "v2.06b"      // Version information
 #define PORTAL_SSID       "Bindicator"  // SSID for web portal
 #define SCROLLING         true          // If false, use the button to change page
-#define NEOPIXEL_PIN      13            // NeoPixel data pin
-#define TOUCH_PIN         12            // Capacitive touch data pin
+#define NEOPIXEL_PIN      15            // NeoPixel data pin
+#define TOUCH_PIN         13            // Capacitive touch data pin
 #define RESET_PIN         16            // Display reset
 #define CLOCK_PIN         5             // Display clock
 #define DATA_PIN          4             // Display data
-#define NUMPIXELS         7             // Number of pixels on NeoPixel Ring
-#define BRIGHTNESS        125           // NeoPixel brightness (0 - 255)
+#define NUMPIXELS         14            // Number of pixels on NeoPixel Ring
+#define BRIGHTNESS        255           // NeoPixel brightness (0 - 255)
 #define WIFI_TIMEOUT      10            // Attempts before WiFi connection times out
 #define PULSE_DELAY       5             // Delay in ms between brightness step increments
 #define CONFIG_DELAY      5             // Arbitary delay before enabling WiFi config at boot
 #define LED_INTERVAL      2 * SECOND    // Interval in second between event colour changing
 #define REFRESH_INTERVAL  20 * MINUTE   // Data refresh interval
+#define NIGHT_BRT         20            // Nightlight brightness (0 - 255)
 
 enum EventColor {                       // Colours used by Google Calendar
   OFF = 0,
@@ -59,6 +61,8 @@ const uint32_t BLUE_HUE = 43691;
 const uint32_t MAGENTA_HUE = 54613;
 const uint32_t CYAN_HUE = 32768;
 const uint32_t YELLOW_HUE = 10923;
+
+bool nightlight = true;
 
 struct Event {                          // All events contain a title and associated colour
   const char* title;                    // Google Apps script deals with calendar logic
@@ -95,6 +99,12 @@ Task tCancelEvents(SECOND / 2, TASK_FOREVER, &cancelEventsCallback);
 
 void setup() {
   pinMode(TOUCH_PIN, INPUT);                 // Set the pin connected to the touch sensor to input
+  if (POWER_LED) {                           // Turn on the built-in LED if enabled above
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+  }
+
+  delay(1000);
 
 #ifdef DEBUG
   Serial.begin(115200);                     // Start serial communication
@@ -216,8 +226,8 @@ void neopixelCallback() {
 #endif
   } else
   {
-    pixel.fill(pixel.Color(0, 0, 0));          // Nothing to show, turn light off
-    pixel.show();
+    if (!nightlight) { pixel.fill(pixel.Color(0, 0, 0)); }         // Nothing to show, turn light off
+    else { pixel.fill(pixel.ColorHSV(0, 0, NIGHT_BRT)); }          // Dim glow
 
 #ifdef DISPLAY
     switch (page % 3)
@@ -267,8 +277,8 @@ void neopixelCallback() {
         u8g2.sendBuffer();
     }
   }
-
 #endif
+  pixel.show();
 }
 
 void cancelEventsCallback() {
@@ -317,7 +327,8 @@ void cancelEventsCallback() {
     delete client;                                  // Delete HTTPSRedirect object
     client = nullptr;                               // COMMENT THIS LINE IF PROGRAM CRASHES
 
-    pixel.fill(pixel.Color(0, 0, 0));               // Light off
+    if (!nightlight) { pixel.fill(pixel.Color(0, 0, 0)); }         // Nothing to show, turn light off
+    else { pixel.fill(pixel.ColorHSV(0, 0, NIGHT_BRT)); }          // Dim glow
     pixel.show();
 
     eventList.Clear();                              // Empty the event list
@@ -331,6 +342,16 @@ void cancelEventsCallback() {
       else
         page++;
 #endif
+
+  if (digitalRead(TOUCH_PIN) == HIGH && eventList.getLength() == 0) 
+  {
+    nightlight = !nightlight;
+    if (!nightlight) { pixel.fill(pixel.Color(0, 0, 0)); }         // Nothing to show, turn light off
+    else { pixel.fill(pixel.ColorHSV(0, 0, NIGHT_BRT)); }          // Dim glow
+    pixel.show();
+
+    DPRINTLN(nightlight);
+  }
   }
 
 void getEventsCallback()
@@ -483,7 +504,6 @@ void initialiseNeoPixel()
 }
 
 // Pulses the NeoPixel white with speed according to PULSE_DELAY.
-// ColorHSV takes hue (16 bit), saturation (8 bit), and brightness (8 bit)
 void pulseNeoPixel()
 {
   for (int i = 255; i > 125; i--)
@@ -592,8 +612,8 @@ struct RGB eventColor2RealColor(EventColor eventColor)
       break;
 
     case BLUE:
-      color.r = 25;
-      color.g = 25;
+      color.r = 0;
+      color.g = 0;
       color.b = 255;
       return color;
       break;
@@ -619,6 +639,7 @@ struct RGB eventColor2RealColor(EventColor eventColor)
       return color;
   }
 }
+
 
 const char* showTimeFormatted(long ms) {
   DPRINTLN(ms);
