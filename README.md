@@ -2,8 +2,8 @@
 ## Overview
 A bin collection notifier partly inspired by [this Twitter post](https://twitter.com/tarbard/status/1002464120447397888?lang=en) by Darren Tabard. Significant changes include collection schedule download from a Google Calendar, OLED display support, use of two NeoPixel Rings for greater brightness, and a capacitive touch sensor to cancel the reminder.
 
-### Example video (early prototype)
-[![Watch the video](https://img.youtube.com/vi/ZPVAoEwXMvM/maxresdefault.jpg)](https://youtu.be/ZPVAoEwXMvM)
+### Example video
+[![Watch the video](https://img.youtube.com/vi/CMq2k3gbSQc/maxresdefault.jpg)](https://youtu.be/CMq2k3gbSQc)
 
 ## How it works
 This is a project in two parts - simple Arduino code running on an ESP8266 handles the WiFi connection, drives the NeoPixel, and regularly downloads calendar events in JSON format from a Google Calendar. On first start it will launch a captive portal access point (SSID "Bindicator"), where you must supply a Google Scripts App ID for your calendar.  
@@ -11,6 +11,8 @@ This is a project in two parts - simple Arduino code running on an ESP8266 handl
 Once connected any collections will cause the Bindicator to light up 24 hours before. Tapping the top of the "bin" will cancel the reminder. Multiple collections (three maximum) on the same day will show as the colour cycling. Colour is determined by the colour chosen for the event in Google Calendar. If the reminder is ignored, it will auto-cancel at 8.00am on the day of collection.
 
 Calendar data is refreshed every 20 minutes.
+
+[![Watch the video](https://img.youtube.com/vi/yja5Ed7apo8/maxresdefault.jpg)](https://youtu.be/yja5Ed7apo8)
 
 ## Make your own
 ### Parts list
@@ -47,6 +49,8 @@ I hot-glued the button and NeoPixel to the lid.
 
 [Here's the Thingiverse remix](https://www.thingiverse.com/thing:4147342)
 
+[![Watch the video](https://img.youtube.com/vi/6T-8IIQMk4Q/maxresdefault.jpg)](https://youtu.be/6T-8IIQMk4Q)
+
 ## LED colours
 * **Pulsing White**: Connecting to WiFi
 * **Solid White**: Downloading calendar data
@@ -63,6 +67,11 @@ I think this is a memory leak from the Linked List which handles events. The rea
 
 **Colours aren't distinctive.**
 I'd recommend sticking with strong primary colours (green / blue / orange etc) instead of the paler equivalents. The brightness variable may help here, as would implementing the gamma correction function available from Adafruit. If you don't like them, they're easily corrected (8 bit RGB values).
+
+**Generic "it's not working!"**
+The ESP8266 is quite particular over pins used for GPIO, especially at boot. Check the various pin-outs on Google for recommendations. The numbers silk-screened onto the board do not correspond with the Arduino IDE assignment. 
+
+You could also uncomment the DEBUG flag in the DebugMacros.h file which will provide more information through the serial monitor.
 
 ## Improvements
 Reducing the reliance on hot-glue would be a start. I wasn't aware of NeoPixel linear boards when I built this, which could be used to create some very interesting effects if mounted on the inside back wall of the model.
