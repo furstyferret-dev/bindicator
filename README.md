@@ -2,6 +2,8 @@
 ## Overview
 A bin collection notifier partly inspired by [this Twitter post](https://twitter.com/tarbard/status/1002464120447397888?lang=en) by Darren Tabard. Significant changes include collection schedule download from a Google Calendar, an OLED display, use of a NeoPixel Ring for greater brightness, and a capacitive touch sensor to cancel the reminder.
 
+[![Watch the video](https://img.youtube.com/vi/ZPVAoEwXMvM/maxresdefault.jpg)](https://youtu.be/ZPVAoEwXMvM)
+
 ## How it works
 This is a project in two parts - simple Arduino code running on an ESP8266 handles the WiFi connection, drives the NeoPixel, and regularly downloads calendar events in JSON format from a Google Calendar. On first start it will launch a captive portal access point (SSID "Bindicator"), where you must supply a Google Scripts App ID for your calendar.  
 
