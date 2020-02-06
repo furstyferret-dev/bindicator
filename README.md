@@ -2,6 +2,7 @@
 ## Overview
 A bin collection notifier partly inspired by [this Twitter post](https://twitter.com/tarbard/status/1002464120447397888?lang=en) by Darren Tabard. Significant changes include collection schedule download from a Google Calendar, OLED display support, use of two NeoPixel Rings for greater brightness, and a capacitive touch sensor to cancel the reminder.
 
+### Example video (early prototype)
 [![Watch the video](https://img.youtube.com/vi/ZPVAoEwXMvM/maxresdefault.jpg)](https://youtu.be/ZPVAoEwXMvM)
 
 ## How it works
