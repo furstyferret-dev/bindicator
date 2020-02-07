@@ -2,7 +2,7 @@
 ## Overview
 A bin collection notifier partly inspired by [this Twitter post](https://twitter.com/tarbard/status/1002464120447397888?lang=en) by Darren Tabard. Significant changes include collection schedule download from a Google Calendar, OLED display support, use of two NeoPixel Rings for greater brightness, and a capacitive touch sensor to cancel the reminder.
 
-### Example video
+### Click on images to see videos
 [![Watch the video](https://img.youtube.com/vi/CMq2k3gbSQc/maxresdefault.jpg)](https://youtu.be/CMq2k3gbSQc)
 
 ## How it works
@@ -61,6 +61,9 @@ I hot-glued the button and NeoPixel to the lid.
 ## Troubleshooting
 **Can't connect to WiFi.**
 The ESP8266 will only connect to 2.4GHz networks. If the captive portal isn't working properly, you can easily hard-code the SSID / password / Google Script ID into the Arduino program.
+
+**I can connect but then see a single red flash**
+Check your Google Script ID. This is a response to a 404, which Google returns if the script ID is wrong. See above.
 
 **Corrupted names on the OLED display.**
 I think this is a memory leak from the Linked List which handles events. The reality is that I'm not sure why it's happening. If you don't like it just reboot the Bindicator.
