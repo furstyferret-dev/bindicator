@@ -18,7 +18,7 @@
 
 //#define DISPLAY                       // Comment out if your ESP8266 doesn't have a display
 #define POWER_LED         true          // Illuminate the built-in LED when power supplied       
-#define VERSION           "v2.24b"      // Version information
+#define VERSION           "v2.29b"      // Version information
 #define PORTAL_SSID       "Bindicator"  // SSID for web portal
 #define SCROLLING         true          // If false, use the button to change page
 #define LED_PIN           15            // NeoPixel data pin
@@ -28,20 +28,21 @@
 #define DATA_PIN          4             // Display data
 #define LED_COUNT         12            // Number of pixels
 #define BRIGHTNESS        255           // NeoPixel brightness (0 - 255)
-#define SPEED             800           // Effect speed
-#define WIFI_TIMEOUT      5             // Delay in seconds before WiFi connection times out
+#define SPEED             1000          // Animation speed (lower is faster)
+#define WIFI_TIMEOUT      5 * SECOND    // Delay in seconds before WiFi connection times out
+#define WATCHDOG_TIMEOUT  60 * SECOND   // Delay in seconds before watchdog reboots device
 #define PULSE_DELAY       5             // Delay in ms between brightness step increments
-#define CONFIG_DELAY      3             // Delay in seconds before enabling WiFi config at boot
+#define CONFIG_DELAY      3 * SECOND    // Delay in seconds before enabling WiFi config at boot
 #define LED_INTERVAL      2 * SECOND    // Interval in second between event colour changing
-#define REFRESH_INTERVAL  20 * MINUTE   // Data refresh interval
+#define REFRESH_INTERVAL  10 * MINUTE   // Data refresh interval
 #define NIGHT_BRT         10            // Nightlight brightness (0 - 255)
 
 bool nightlight = true;
-int modes[4] = { FX_MODE_STATIC, FX_MODE_RAINBOW_CYCLE, FX_MODE_FIREWORKS_RANDOM, FX_MODE_CUSTOM };
+int modes[3] = { FX_MODE_STATIC, FX_MODE_RAINBOW, FX_MODE_CUSTOM };
 int modeIndex = FX_MODE_STATIC; 
 
 struct Event {                          // All events contain a title and associated colour
-  const char* title;                    // Google Apps script deals with calendar logic
+  const char* title;                    
   uint32_t color;
 };
 
@@ -69,11 +70,14 @@ WiFiManagerParameter custom_gScriptId(                                          
 void neopixelCallback();                                                          // Task scheduler function for updating the NeoPixel and display
 void getEventsCallback();                                                         // Task scheduler function for refreshing event data
 void cancelEventsCallback();                                                      // Task scheduler function for cancelling upcoming events
+void wiFiWatchdogCallback();                                                      // Task scheduler function for monitoring WiFi connection
 
 Scheduler ts;                                                                     // Responsible for all repeating functions
 Task tShowEventColor(LED_INTERVAL, TASK_FOREVER, &neopixelCallback);              // Task to convert events to NeoPixel colours
 Task tUpdateData(REFRESH_INTERVAL, TASK_FOREVER, &getEventsCallback);             // Task to update the list of calendar events
 Task tCancelEvents(SECOND / 2, TASK_FOREVER, &cancelEventsCallback);              // Task to poll the capacitive button
+Task tWiFiWatchdog(SECOND, TASK_FOREVER, &wiFiWatchdogCallback);                  // Task to monitor WiFi and reconnect if necessary
+  
 
 void setup() {
   pinMode(TOUCH_PIN, INPUT);                 // Set the pin connected to the touch sensor to input
@@ -113,7 +117,7 @@ void setup() {
       if (configFile) {
         DPRINTLN("Opened config file");
         size_t size = configFile.size();
-        std::unique_ptr<char[]> buf(new char[size]);                    // Allocate a buffer to store contents of the file
+        std::unique_ptr<char[]> buf(new char[size]);                   // Allocate a buffer to store contents of the file
         configFile.readBytes(buf.get(), size);
 
         DynamicJsonDocument doc(size);                                 // Deserialise JSON data
@@ -137,7 +141,7 @@ void setup() {
   while (digitalRead(TOUCH_PIN) == HIGH)      // If so wait until approx 5 seconds have passed
   {                                           // then start WiFi Configuration
     DPRINTLN("Touch pin high");
-    if (millis() > startTime + (CONFIG_DELAY * SECOND))
+    if (millis() > startTime + (CONFIG_DELAY))
     {
       configWiFi();   
       return;
@@ -157,15 +161,18 @@ void setup() {
   startTime = millis();  
   while (WiFi.status() != WL_CONNECTED) {
     ws2812fx.service();
-    //wifiTimeoutCounter++;
     DPRINT(".");
-    if (millis() > startTime + (WIFI_TIMEOUT * SECOND)) // If it doesn't connect, the NeoPixel will turn red.
+    if (millis() > startTime + (WIFI_TIMEOUT)) 
     {                                                   // It's trivial to change this to start WiFi configuration
       ws2812fx.fill(ws2812fx.ColorHSV(RED));            // at this point.
       ws2812fx.show();
       DPRINTLN();
       DPRINTLN("WiFi Timeout");
-      while (true) { ESP.wdtFeed(); }
+      while (true) 
+      { 
+        if (millis() < WATCHDOG_TIMEOUT)        // Wait 60 seconds then reboot in attempt to recover WiFi
+          ESP.wdtFeed(); 
+        }
 #ifdef DISPLAY
       u8g2.clearBuffer();                       // Clear the internal memory
       u8g2.setFont(u8g2_font_helvR14_tr);       // Choose a suitable font
@@ -181,17 +188,14 @@ void setup() {
   DPRINTLN("IP address: ");
   DPRINTLN(WiFi.localIP());
 
-  //ws2812fx.setColor(WHITE);
-  //ws2812fx.show();
-
   ts.init();                                // Task Scheduler initialisation
   ts.addTask(tShowEventColor);              // Add tasks
   ts.addTask(tUpdateData);                  // ...
   ts.addTask(tCancelEvents);                // ...
+  ts.addTask(tWiFiWatchdog);                // ....
   tUpdateData.enable();                     // Connected and ready to start getting event data
   tCancelEvents.enable();                   // Allow use of capacitive button
-  //ws2812fx.setSpeed(SPEED / 2);
-  //ws2812fx.setMode(FX_MODE_STATIC);
+  tWiFiWatchdog.enable();
 }
 
 void loop() {
@@ -222,9 +226,6 @@ void neopixelCallback() {
     
     struct Event e = eventList.getCurrent();
     ws2812fx.setColor(e.color);
-    //rgb = eventColor2RealColor(e.color);
-    //pixel.fill(pixel.Color(rgb.r, rgb.g, rgb.b));
-    //pixel.show();
     eventList.loop();                         // Move to the next item
 #ifdef DISPLAY
     u8g2.clearBuffer();                       // Clear the internal memory
@@ -236,10 +237,7 @@ void neopixelCallback() {
 #endif
   } else
   {
-    if (ws2812fx.getMode() != modes[modeIndex])
-      ws2812fx.setMode(modes[modeIndex]);
-    if (ws2812fx.getMode() == FX_MODE_STATIC)
-      ws2812fx.setColor(ws2812fx.ColorHSV(0, 0, NIGHT_BRT));
+    tidyUp();
 
 #ifdef DISPLAY
     switch (page % 3)
@@ -339,10 +337,7 @@ void cancelEventsCallback() {
     delete client;                                  // Delete HTTPSRedirect object
     client = nullptr;                               // COMMENT THIS LINE IF PROGRAM CRASHES
 
-    if (ws2812fx.getMode() != modes[modeIndex])
-      ws2812fx.setMode(modes[modeIndex]);
-    if (ws2812fx.getMode() == FX_MODE_STATIC)
-      ws2812fx.setColor(ws2812fx.ColorHSV(0, 0, NIGHT_BRT));
+    tidyUp();
 
     eventList.Clear();                              // Empty the event list
     getEventsCallback();                            // Update events list to make sure they were
@@ -351,7 +346,7 @@ void cancelEventsCallback() {
 
 #ifdef DISPLAY
   if (!SCROLLING && digitalRead(TOUCH_PIN) == HIGH)
-      page++;                                         // Increment page number (modulo use)
+      page++;                                       // Increment page number (modulo)
       else
         page++;
 #endif
@@ -359,9 +354,10 @@ void cancelEventsCallback() {
   unsigned long startTime = millis();
   if (digitalRead(TOUCH_PIN) == HIGH && eventList.getLength() == 0) 
   {
-      modeIndex++;
-      modeIndex = modeIndex % 4;
+      modeIndex++;                                  // Cycle nightlight modes
+      modeIndex = modeIndex % 3;
       ws2812fx.setMode(modes[modeIndex]);
+      tidyUp();
       DPRINT("Mode: ");
       DPRINTLN(modeIndex);
   }
@@ -441,8 +437,8 @@ void parseJson(String json) {
     return;
   }
 
-  JsonObject root;                                // This object contains an array of JSON events
-  eventList.Clear();                               // Clear the existing Linked List of events
+  JsonObject root;                                 // This object contains an array of JSON events
+  eventList.Clear();                               
   for (int i = 0; i < doc.size(); i++)
   {
     DPRINTLN(ESP.getFreeHeap());
@@ -499,6 +495,21 @@ void saveConfigCallback()
 #endif
   delay(5000);
   ESP.restart();
+}
+
+void wiFiWatchdogCallback() {
+  unsigned long startTime = millis();
+  
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    if (millis() > startTime + WATCHDOG_TIMEOUT)
+      ESP.restart();
+    ws2812fx.setColor(RED);
+    ws2812fx.setBrightness(BRIGHTNESS);
+    ws2812fx.setMode(FX_MODE_BLINK);
+    ws2812fx.service();
+    WiFi.begin();
+  }
 }
 
 /********************** NEOPIXEL HELPER FUNCTIONS ***************************/
@@ -573,10 +584,21 @@ uint32_t eventColor2RealColor(int eventColor)
   }
 }
 
+void tidyUp() {
+  if (ws2812fx.getMode() != modes[modeIndex])
+      ws2812fx.setMode(modes[modeIndex]);
+    if (ws2812fx.getMode() == FX_MODE_STATIC)
+      ws2812fx.setColor(ws2812fx.ColorHSV(0, 0, NIGHT_BRT));
+    if (ws2812fx.getMode() == FX_MODE_FIRE_FLICKER_SOFT)
+      ws2812fx.setColor(0xE25822);
+    if (ws2812fx.getMode() == FX_MODE_COMET || ws2812fx.getMode() == FX_MODE_LARSON_SCANNER)
+      ws2812fx.setColor(0x0000FF);    
+}
+
 uint16_t customEffect(void) { 
-  WS2812FX::Segment* seg = ws2812fx.getSegment(); // get the current segment
+  WS2812FX::Segment* seg = ws2812fx.getSegment(); 
   ws2812fx.clear();
-  return seg->speed; // return the delay until the next animation step (in msec)
+  return seg->speed; // Return the delay until the next animation step (in ms)
 }
 
 const char* showTimeFormatted(long ms) {
@@ -586,9 +608,9 @@ const char* showTimeFormatted(long ms) {
   long secs = 0;
 
   String minsText = " minutes"; 
-  secs = ms / 1000;             // Set the seconds remaining
-  mins = secs / 60;             // Convert seconds to minutes
-  hours = mins / 60;            // Convert minutes to hours
+  secs = ms / 1000;             
+  mins = secs / 60;             
+  hours = mins / 60;            
   secs = secs - (mins * 60);    // Subtract the coverted seconds to minutes in order to display 59 secs max
   mins = mins - (hours * 60);   // Subtract the coverted minutes to hours in order to display 59 minutes max
 
