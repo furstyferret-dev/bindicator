@@ -16,28 +16,28 @@
 #define MINUTE            SECOND * 60
 #define HOUR              MINUTE * 60
 
-//#define DISPLAY                       // Comment out if your ESP8266 doesn't have a display
-#define POWER_LED         true          // Illuminate the built-in LED when power supplied       
-#define VERSION           "v2.29b"      // Version information
-#define PORTAL_SSID       "Bindicator"  // SSID for web portal
-#define SCROLLING         true          // If false, use the button to change page
-#define LED_PIN           15            // NeoPixel data pin
-#define TOUCH_PIN         13            // Capacitive touch data pin
-#define RESET_PIN         16            // Display reset
-#define CLOCK_PIN         5             // Display clock
-#define DATA_PIN          4             // Display data
-#define LED_COUNT         12            // Number of pixels
-#define BRIGHTNESS        255           // NeoPixel brightness (0 - 255)
-#define SPEED             1000          // Animation speed (lower is faster)
-#define WIFI_TIMEOUT      5 * SECOND    // Delay in seconds before WiFi connection times out
-#define WATCHDOG_TIMEOUT  60 * SECOND   // Delay in seconds before watchdog reboots device
-#define PULSE_DELAY       5             // Delay in ms between brightness step increments
-#define CONFIG_DELAY      3 * SECOND    // Delay in seconds before enabling WiFi config at boot
-#define LED_INTERVAL      2 * SECOND    // Interval in second between event colour changing
-#define REFRESH_INTERVAL  10 * MINUTE   // Data refresh interval
-#define NIGHT_BRT         10            // Nightlight brightness (0 - 255)
+//#define DISPLAY                             // Comment out if your ESP8266 doesn't have a display
+#define POWER_LED         true                // Illuminate the built-in LED when power supplied       
+#define VERSION           "v3.10b"            // Version information
+#define PORTAL_SSID       "Bindicator"        // SSID for web portal
+#define SCROLLING         true                // If false, use the button to change page
+#define LED_PIN           15                  // NeoPixel data pin
+#define TOUCH_PIN         13                  // Capacitive touch data pin
+#define RESET_PIN         16                  // Display reset
+#define CLOCK_PIN         5                   // Display clock
+#define DATA_PIN          4                   // Display data
+#define LED_COUNT         12                  // Number of pixels
+#define BRIGHTNESS        255                 // NeoPixel brightness (0 - 255)
+#define SPEED             1000                // Animation speed (lower is faster)
+#define WIFI_TIMEOUT      5 * SECOND          // Delay in seconds before WiFi connection times out
+#define WATCHDOG_TIMEOUT  60 * SECOND         // Delay in seconds before watchdog reboots device
+#define CONFIG_DELAY      3 * SECOND          // Delay in seconds before enabling WiFi config at boot
+#define LED_INTERVAL      2 * SECOND          // Interval in second between event colour changing
+#define REFRESH_INTERVAL  10 * MINUTE         // Data refresh interval
+#define NIGHT_BRT         150                  // Night light brightness (0 - 255)
+#define HALOGEN_HUE       5643                // Night light colour temperature
+#define HALOGEN_SAT       80                  // Night light saturation
 
-bool nightlight = true;
 int modes[3] = { FX_MODE_STATIC, FX_MODE_RAINBOW, FX_MODE_CUSTOM };
 int modeIndex = FX_MODE_STATIC; 
 
@@ -58,7 +58,8 @@ int page;                               // Incremented to change page when butto
 
 const char* host = "script.google.com";                                           // Base URL for Google Apps
 const int httpsPort = 443;                                                        // Default HTTPS port
-char *GScriptId = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";     // Default script ID
+char *GScriptId = "AKfycbzcU2LsYk0ZVltDtBHlbgde_9fXQvYMuddsvGhHFIGcSl3wr_5k";     // Default script ID
+//char *GScriptId = "AKfycbyglKR6m4u2WMrsR5X9220Wtl1wKkpYg8WNexXYSwlDVJIoHM2e";   // John Lacey script ID
 
 String eventsUrl = String("/macros/s/") + GScriptId + "/exec";                    // URL to retrieve calendar entries [GET]
 String clearUrl = String("/macros/s/") + GScriptId + "/exec?clear";               // URL to clear active events [POST]
@@ -587,8 +588,10 @@ uint32_t eventColor2RealColor(int eventColor)
 void tidyUp() {
   if (ws2812fx.getMode() != modes[modeIndex])
       ws2812fx.setMode(modes[modeIndex]);
+//    if (ws2812fx.getMode() == FX_MODE_STATIC)
+//      ws2812fx.setColor(ws2812fx.ColorHSV(0, 0, NIGHT_BRT));
     if (ws2812fx.getMode() == FX_MODE_STATIC)
-      ws2812fx.setColor(ws2812fx.ColorHSV(0, 0, NIGHT_BRT));
+      ws2812fx.setColor(ws2812fx.gamma32(ws2812fx.ColorHSV(HALOGEN_HUE, HALOGEN_SAT, NIGHT_BRT)));
     if (ws2812fx.getMode() == FX_MODE_FIRE_FLICKER_SOFT)
       ws2812fx.setColor(0xE25822);
     if (ws2812fx.getMode() == FX_MODE_COMET || ws2812fx.getMode() == FX_MODE_LARSON_SCANNER)
