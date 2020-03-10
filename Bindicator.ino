@@ -58,8 +58,7 @@ int page;                               // Incremented to change page when butto
 
 const char* host = "script.google.com";                                           // Base URL for Google Apps
 const int httpsPort = 443;                                                        // Default HTTPS port
-char *GScriptId = "AKfycbzcU2LsYk0ZVltDtBHlbgde_9fXQvYMuddsvGhHFIGcSl3wr_5k";     // Default script ID
-//char *GScriptId = "AKfycbyglKR6m4u2WMrsR5X9220Wtl1wKkpYg8WNexXYSwlDVJIoHM2e";   // John Lacey script ID
+char *GScriptId = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";     // Default script ID
 
 String eventsUrl = String("/macros/s/") + GScriptId + "/exec";                    // URL to retrieve calendar entries [GET]
 String clearUrl = String("/macros/s/") + GScriptId + "/exec?clear";               // URL to clear active events [POST]
